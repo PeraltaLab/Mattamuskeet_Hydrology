@@ -1,0 +1,235 @@
+---
+title: "Nitrogen transformations at Lake Mattamuskeet"
+author: "Brian Hinckley, Randall Etheridge, Ariane Peralta"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: null
+  fig_caption: yes
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+Project Description: XXX
+
+# Setting up working directory, packages
+```{r Setup, include=FALSE}
+#PC - set WD manually by Session -> Set Working Directory -> Choose Directory...
+if(Sys.info()[1] == "Darwin"){
+  setwd("~/GitHub/Mattamuskeet_Hydrology/analyses/")
+} else {
+  # setwd(choose.dir())
+}
+rm(list = ls())
+
+#load req'd packages
+require("vegan")
+require("dplyr")
+require("nlme")
+require("reshape2")
+require("ggplot2")
+require("ade4")
+require("knitr")
+
+# set std err
+se <- function(x, ...) {
+sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))
+}
+ci <- function(x, ...) {
+1.96 * sd(x, na.rm = TRUE)
+}
+```
+
+#Loading data file
+```{r Loading Files, include=FALSE}
+# load data file 
+master <- read.csv("../data/2017_Mattamuskeet_SoilBiogeo.csv")
+dim(master)
+
+#Mean center all continuous variables
+#master$Moisture = master$Moisture- mean(master$Moisture)
+#master$ugNH4.gDM = master$ugNH4.gDM- mean(master$ugNH4.gDM)
+#master$ugNO3.gDM = master$ugNO3.gDM- mean(master$ugNO3.gDM)
+
+```
+
+# nitrification
+```{r}
+#NITRIFICATION
+#assessing the effect of site and all variables on all N rates
+results = lm(nitrification ~ Site + Moisture, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site + ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site + Date, data = master)
+summary(results)
+
+
+results = lm(nitrification ~ Site + Hydrology, data = master)
+summary(results)
+
+#NITRIFICATION INTERACTIONS
+
+results = lm(nitrification ~ Site * Moisture, data = master)
+summary(results)
+
+
+results = lm(nitrification ~ Site * ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site * Date, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site * Hydrology, data = master)
+summary(results)
+
+#NITRIFICATION Multiple TERMS MODEL
+
+results = lm(nitrification ~ Site + Date + Moisture + ugNH4.gDM , data = master)
+summary(results)
+
+#NITRIFICATION Multiple TERMS MODEL WITH INTERACTIONS
+
+
+results = lm(nitrification ~ Site * Date  + ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site * Moisture + Date + ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(nitrification ~ Site * ugNH4.gDM + Moisture + Date , data = master)
+summary(results)
+```
+
+#graph nitrification
+```{r Loading Files, include=FALSE}
+p <- ggplot(master, aes(x=Moisture, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=3) + scale_x_continuous(limits=c(0,60))
+p1=p+geom_smooth(method="lm")
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=14), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y = (expression(paste("Nitrification Potential (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/nitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+
+# denitrification
+```{r echo=TRUE}
+#DENITRIFICATION
+
+
+results = lm(denitrification ~ Site + Moisture , data = master)
+summary(results)
+
+results = lm(denitrification ~ Site  + ugNO3.gDM, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site + Date, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site + Hydrology, data = master)
+summary(results)
+
+
+#DENITRIFICATION INTERACTIONS
+
+results = lm(denitrification ~ Site * Moisture , data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * ugNO3.gDM, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * Date, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * Hydrology, data = master)
+summary(results)
+
+#DENITRIFICATION Multiple TERMS MODEL
+
+results = lm(denitrification ~ Site + Date  + Moisture , data = master)
+summary(results)
+
+#DENITRIFICATION Multiple TERMS MODEL WITH INTERACTIONS
+
+results = lm(denitrification ~ Site * Date + Moisture + ugNO3.gDM, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * Moisture + Date + ugNO3.gDM, data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * ugNO3.gDM + Moisture + Date , data = master)
+summary(results)
+
+results = lm(denitrification ~ Site * ugNO3.gDM + Moisture , data = master)
+summary(results)
+
+
+```
+#graph denitrification
+```{r Loading Files, include=FALSE}
+p <- ggplot(master, aes(x=Moisture, y=denitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=3) + scale_x_continuous(limits=c(0,60))
+p1=p+geom_smooth(method="lm")
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=14), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y = (expression(paste("Denitrification Potential (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/denitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
+```{r echo=TRUE}
+#NMineralization
+
+results = lm(Nmineralization ~ Site + Moisture, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site + ugNO3.gDM , data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site + Date, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site + Hydrology, data = master)
+summary(results)
+
+#NMineralization INTERACTIONS
+
+results = lm(Nmineralization ~ Site * Moisture, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site * ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site * Date, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site * Hydrology, data = master)
+summary(results)
+
+#NMINERALIZATION Multiple TERMS MODEL
+
+results = lm(Nmineralization ~ Site + Date  + Moisture + ugNH4.gDM, data = master)
+summary(results)
+
+#NMINERALIZATION Multiple TERMS MODEL WITH INTERACTIONS
+
+
+#N-min
+results = lm(Nmineralization ~ Site * Date + ugNH4.gDM + Moisture, data = master)
+summary(results)
+
+
+#N-min
+results = lm(Nmineralization ~ Site * Moisture + Date + ugNH4.gDM, data = master)
+summary(results)
+
+results = lm(Nmineralization ~ Site * ugNH4.gDM + Moisture + Date , data = master)
+summary(results)
+
+```
+
+#graph denitrification
+```{r Loading Files, include=FALSE}
+p <- ggplot(master, aes(x=Moisture, y=Nmineralization, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=3) + scale_x_continuous(limits=c(0,60))
+p1=p+geom_smooth(method="lm")
+p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=14), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y=expression(paste("Nitrogen Mineralization (", mu,'g ',NH[4]^{'+'},' - N ',g^{-1},' soil)'))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+ggsave("../figures/Nmineralization.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
