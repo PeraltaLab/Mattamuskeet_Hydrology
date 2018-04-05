@@ -233,3 +233,26 @@ p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = e
 
 ggsave("../figures/Nmineralization.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 ```
+###MARIO - need help here
+### Mattamuskeet MESOCOSM Experiment - 2017-2018 - Brian Hinckley thesis
+#Loading data file
+```{r Loading Files, include=FALSE}
+# load data file 
+meso <- read.csv("../data/2017_Matt_Mesocosm_Nitrogen.csv")
+dim(meso)
+```
+
+```{r data manipulation, include=FALSE}
+# load data file 
+library(dplyr)
+library(tidyr)
+
+meso.new <- meso %>% group_by(Sample.Date,Ret_Time, Treatment) %>% 
+  summarise(avgTKN = mean(TKN, na.rm=TRUE),
+            avgNH3N = mean(NH3N, na.rm=TRUE),
+            avgNO3N = mean(NO3N, na.rm=TRUE),
+            avgON = mean(ON, na.rm=TRUE)) 
+
+#how do we get Ndiff (Treatment$Treatment-Treatment$Control) for columns avgTKN, avgNH3N, avgNO3N, avgON
+
+```
