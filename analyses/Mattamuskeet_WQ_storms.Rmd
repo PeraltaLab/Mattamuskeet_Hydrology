@@ -1,0 +1,75 @@
+---
+title: "Water Quality at Lake Mattamuskeet"
+author: "Brian Hinckley, Randall Etheridge, Ariane Peralta"
+date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
+output:
+  pdf_document: null
+  fig_caption: yes
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+Project Description: XXX
+
+# Setting up working directory, packages
+```{r Setup, include=FALSE}
+#PC - set WD manually by Session -> Set Working Directory -> Choose Directory...
+if(Sys.info()[1] == "Darwin"){
+  setwd("~/GitHub/Mattamuskeet_Hydrology/analyses/")
+} else {
+  setwd(choose.dir())
+}
+rm(list = ls())
+
+#load req'd packages
+require("dplyr")
+require("reshape2")
+require("ggplot2")
+require("knitr")
+
+# set std err
+se <- function(x, ...) {
+sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))
+}
+ci <- function(x, ...) {
+1.96 * sd(x, na.rm = TRUE)
+}
+```
+
+#Loading data file
+```{r Loading Files, include=FALSE}
+# load data file 
+wq <- read.csv("../data/Matt_Ag_storm.csv")
+dim(wq)
+```
+
+# plotting storm 1 trial
+```{r Loading Files, include=FALSE}
+wq <- read.csv("../data/Matt_Ag_storm.csv")
+date.time <- strptime(wq$Storm_1, format = "%m/%d/%y  %H:%M", tz = "America/New_York")
+wq$date.time <- date.time
+str(wq)
+
+date.time.nut <- strptime(wq$NUT_DATE.TIME, format = "%m/%d/%y  %H:%M", tz = "America/New_York")
+wq$date.time.nut <- date.time.nut
+str(wq)
+
+p <- ggplot(wq, aes(x = date.time.nut))
+  p <- p + geom_line(aes(y = DON, colour = "organic N"))
+  p <- p + geom_line(aes(y = NH4_1, colour = "ammonium-N"))
+  p <- p + geom_line(aes(y = NO3_1, colour = "nitrate-N"))
+  p <- p + geom_line(aes(x = date.time, y = WL*10, colour = "water level"))
+  p <- p + scale_y_continuous(sec.axis = sec_axis(~.*0.1, name = "Water Level (m)"))
+# modifying colours and theme options
+  p <- p + scale_colour_manual(values = c("black", "green", "red", "blue"))
+  p <- p + labs(y = "N Parameter (mg/L)",
+                x = "Date and time",
+                colour = "Parameter")
+  p <- p + theme_bw() + theme(legend.position = "top")
+  p <- p + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=14), axis.text.x = element_text(vjust=0.90, hjust=0.5, angle=25, size=12), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+  
+p
+
+ggsave("../figures/AgStormExample.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+```
+
