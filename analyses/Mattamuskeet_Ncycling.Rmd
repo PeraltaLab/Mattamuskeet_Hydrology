@@ -1,5 +1,5 @@
 ---
-title: "Nitrogen transformations at Lake Mattamuskeet"
+title: "Hydrologic management influences nitrogen cycling at the terrestrial-aquatic interface"
 author: "Brian Hinckley, Randall Etheridge, Ariane Peralta"
 date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -23,6 +23,7 @@ rm(list = ls())
 
 #load req'd packages
 require("vegan")
+require("plyr")
 require("dplyr")
 require("nlme")
 require("lme4")
@@ -30,7 +31,10 @@ require("reshape2")
 require("ggplot2")
 require("ade4")
 require("knitr")
-
+library("AICcmodavg")
+library("scales")
+library("tidyr")
+library(ggpubr)
 # set std err
 se <- function(x, ...) {
 sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))
@@ -39,265 +43,623 @@ ci <- function(x, ...) {
 1.96 * sd(x, na.rm = TRUE)
 }
 ```
-
 #Loading data file
 ```{r Loading Files, include=FALSE}
 # load data file 
-master <- read.csv("../data/2017_Mattamuskeet_SoilBiogeo.csv")
-dim(master)
+master.original <- read.csv("../data/2017_Mattamuskeet_SoilBiogeo.csv")
+dim(master.original)
 
-#Mean center all continuous variables
-#master$Moisture = master$Moisture- mean(master$Moisture)
-#master$ugNH4.gDM = master$ugNH4.gDM- mean(master$ugNH4.gDM)
-#master$ugNO3.gDM = master$ugNO3.gDM- mean(master$ugNO3.gDM)
+Nmineralization_ng <- (master.original$Nmineralization)*1000
+master <- cbind(master.original,Nmineralization_ng)
 
+cor(master[,8:15])
+#TOC-TN: 0.93450289 did not include TN in model selection
+
+master.MSM <- subset(master, Site == "MSM")
+master.Ag <- subset(master, Site == "Ag")
+```
+# Mixed Effects Models
+```{r mixed effects, include=FALSE}
+library("lmerTest")
+library("pbkrtest")
+
+#nitrif.lm <- lmer(nitrification ~ Site*Hydrology + (1|Month), data = master) #hydrology NS
+nitrif.lm <- lmer(nitrification ~ Site + (1|Month), data = master)
+plot(nitrif.lm)
+summary(nitrif.lm, ddf="Kenward-Roger")
+confint(nitrif.lm)
+
+#denitrif.lm <- lmer(denitrification ~ Site*Hydrology + (1|Month), data = master) #hydrology NS
+denitrif.lm <- lmer(denitrification ~ Site + (1|Month), data = master)
+plot(denitrif.lm)
+summary(denitrif.lm, ddf="Kenward-Roger")
+confint(denitrif.lm)
+
+#Nmin.lm <- lmer(Nmineralization_ng ~ Site*Hydrology + (1|Month), data = master) #hydrology NS
+Nmin.lm <- lmer(Nmineralization_ng ~ Site + (1|Month), data = master)
+plot(Nmin.lm)
+summary(Nmin.lm, ddf="Kenward-Roger")
+confint(Nmin.lm)
+
+pH.lm <- lmer(pH ~ Site + (1|Month), data = master) #mixed model assumptions violated so no random effect info
+summary(pH.lm, ddf="Kenward-Roger")
+
+moisture.lm <- lmer(Moisture ~ Site + (1|Month), data = master)
+summary(moisture.lm, ddf="Kenward-Roger")
+
+NH4.lm <- lmer(ugNH4.gDM ~ Site + (1|Month), data = master)
+summary(NH4.lm, ddf="Kenward-Roger")
+
+NO3.lm <- lmer(ugNO3.gDM ~ Site + (1|Month), data = master)
+summary(NO3.lm, ddf="Kenward-Roger")
+
+TOC.lm <- lmer(TOC ~ Site + (1|Month), data = master)
+summary(TOC.lm, ddf="Kenward-Roger")
+
+TN.lm <- lmer(TN ~ Site + (1|Month), data = master)
+summary(TN.lm, ddf="Kenward-Roger")
+
+CN.lm <- lmer(CNratio ~ Site + (1|Month), data = master)
+summary(CN.lm, ddf="Kenward-Roger")
+```
+#compare N process x moisture slopes - MSM
+```{r compare slopes, include=FALSE}
+library(lsmeans)
+
+## NITRIFICATION - MSM
+nitrif.slopes <- lm(nitrification ~ Moisture*Month, data = master.MSM)
+anova(nitrif.slopes)
+
+# Obtain slopes
+nitrif.slopes$coefficients
+m.lst <- lstrends(nitrif.slopes, "Month", var="Moisture")
+m.lst
+#  Month       Moisture.trend     SE df lower.CL upper.CL
+# 1.July             0.01769 0.0205 30  -0.0241   0.0595
+# 2.September       -0.01449 0.0174 30  -0.0501   0.0211
+# 3.December         0.00422 0.0165 30  -0.0294   0.0379
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+# contrast                 estimate     SE df t.ratio p.value
+# 1.July - 2.September       0.0322 0.0269 30  1.197  0.4642 
+# 1.July - 3.December        0.0135 0.0263 30  0.512  0.8660 
+# 2.September - 3.December  -0.0187 0.0240 30 -0.780  0.7178 
+
+# P value adjustment: tukey method for comparing a family of 3 estimates 
+
+## DENITRIFICATION - MSM
+denitrif.slopes <- lm(denitrification ~ Moisture*Month, data = master.MSM)
+anova(denitrif.slopes)
+
+# Obtain slopes
+denitrif.slopes$coefficients
+m.lst <- lstrends(denitrif.slopes, "Month", var="Moisture")
+m.lst
+# Month       Moisture.trend   SE df lower.CL upper.CL
+# 1.July               -7.65 8.66 30   -25.33     10.0
+# 2.September          39.98 7.37 30    24.93     55.0
+# 3.December           19.94 6.97 30     5.71     34.2
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+# contrast                 estimate   SE df t.ratio p.value
+# 1.July - 2.September        -47.6 11.4 30 -4.190  0.0006 
+# 1.July - 3.December         -27.6 11.1 30 -2.482  0.0482 
+# 2.September - 3.December     20.0 10.1 30  1.977  0.1355 
+
+# P value adjustment: tukey method for comparing a family of 3 estimates 
+
+## N MINERALIZATION - MSM
+Nmin.slopes <- lm(Nmineralization_ng ~ Moisture*Month, data = master.MSM)
+anova(Nmin.slopes)
+
+# Obtain slopes
+Nmin.slopes$coefficients
+m.lst <- lstrends(Nmin.slopes, "Month", var="Moisture")
+m.lst
+ #Month       Moisture.trend   SE df lower.CL upper.CL
+ #1.July               103.4 40.0 30     21.7    185.0
+ #2.September           26.4 34.0 30    -43.1     95.8
+ #3.December           120.0 32.2 30     54.3    185.7
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+# contrast                 estimate     SE df t.ratio p.value
+# 1.July - 2.September       0.0770 0.0525 30  1.467  0.3207 
+# 1.July - 3.December       -0.0166 0.0513 30 -0.324  0.9439 
+# 2.September - 3.December  -0.0936 0.0468 30 -2.000  0.1297 
+
+# P value adjustment: tukey method for comparing a family of 3 estimates 
+```
+#compare N process x moisture slopes - AG
+```{r compare slopes, include=FALSE}
+
+## NITRIFICATION - AG
+ag.nitrif.slopes <- lm(nitrification ~ Moisture*Month, data = master.Ag)
+anova(ag.nitrif.slopes)
+
+# Obtain slopes
+ag.nitrif.slopes$coefficients
+m.lst <- lstrends(ag.nitrif.slopes, "Month", var="Moisture")
+m.lst
+ #Month       Moisture.trend    SE df lower.CL upper.CL
+ #1.July             -0.0129 0.226 30   -0.475    0.449
+ #2.September         0.0158 0.116 30   -0.221    0.253
+ #3.December         -0.0825 0.166 30   -0.421    0.256
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+ #contrast                 estimate    SE df t.ratio p.value
+ #1.July - 2.September      -0.0287 0.254 30 -0.113  0.9930 
+ #1.July - 3.December        0.0695 0.281 30  0.248  0.9667 
+ #2.September - 3.December   0.0983 0.202 30  0.486  0.8787 
+ 
+# P value adjustment: tukey method for comparing a family of 3 estimates 
+
+## DENITRIFICATION - AG
+ag.denitrif.slopes <- lm(denitrification ~ Moisture*Month, data = master.Ag)
+anova(ag.denitrif.slopes)
+
+# Obtain slopes
+ag.denitrif.slopes$coefficients
+m.lst <- lstrends(ag.denitrif.slopes, "Month", var="Moisture")
+m.lst
+# Month       Moisture.trend   SE df lower.CL upper.CL
+# 1.July               -5.67 40.9 30  -89.247     77.9
+# 2.September          42.72 21.0 30   -0.115     85.6
+# 3.December          -14.81 30.0 30  -76.029     46.4
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+# contrast                 estimate   SE df t.ratio p.value
+# 1.July - 2.September       -48.39 46.0 30 -1.052  0.5505 
+# 1.July - 3.December          9.14 50.7 30  0.180  0.9823 
+# 2.September - 3.December    57.53 36.6 30  1.572  0.2729 
+
+# P value adjustment: tukey method for comparing a family of 3 estimates 
+
+## N MINERALIZATION - AG
+ag.Nmin.slopes <- lm(Nmineralization_ng ~ Moisture*Month, data = master.Ag)
+anova(Nmin.slopes)
+
+# Obtain slopes
+Nmin.slopes$coefficients
+m.lst <- lstrends(Nmin.slopes, "Month", var="Moisture")
+m.lst
+ #Month       Moisture.trend   SE df lower.CL upper.CL
+ #1.July               103.4 40.0 30     21.7    185.0
+ #2.September           26.4 34.0 30    -43.1     95.8
+ #3.December           120.0 32.2 30     54.3    185.7
+
+#Confidence level used: 0.95 
+
+# Compare slopes
+pairs(m.lst)
+# contrast                 estimate     SE df t.ratio p.value
+# 1.July - 2.September       0.0770 0.0525 30  1.467  0.3207 
+# 1.July - 3.December       -0.0166 0.0513 30 -0.324  0.9439 
+# 2.September - 3.December  -0.0936 0.0468 30 -2.000  0.1297 
+
+
+# P value adjustment: tukey method for comparing a family of 3 estimates 
 ```
 
-# nitrification
+# nitrification - multiple linear regression - AIC model comparisons
 ```{r}
 #NITRIFICATION
-#assessing the effect of site and all variables on all N rates
-results = lm(nitrification ~ Site + Moisture, data = master)
-summary(results)
 
-results = lm(nitrification ~ Site + ugNH4.gDM, data = master)
-summary(results)
+model1 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model2 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model3 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model4 = lm(nitrification ~ pH + Moisture + ugNH4.gDM, data = master.MSM)
+model5 = lm(nitrification ~ pH + Moisture, data = master.MSM)
+model6 = lm(nitrification ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model7 = lm(nitrification ~ Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model8 = lm(nitrification ~ Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model9 = lm(nitrification ~ Moisture + ugNH4.gDM, data = master.MSM)
+model10 = lm(nitrification ~ pH + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model11 = lm(nitrification ~ pH + ugNH4.gDM + TOC, data = master.MSM)
+model12 = lm(nitrification ~ pH + ugNH4.gDM + CNratio, data = master.MSM)
+model13 = lm(nitrification ~ pH + ugNH4.gDM, data = master.MSM)
+model14 = lm(nitrification ~ pH + TOC + CNratio, data = master.MSM)
+model15 = lm(nitrification ~ pH + TOC, data = master.MSM)
+model16 = lm(nitrification ~ pH + CNratio, data = master.MSM)
+model17 = lm(nitrification ~ ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model18 = lm(nitrification ~ ugNH4.gDM + TOC, data = master.MSM)
+model19 = lm(nitrification ~ Moisture + TOC + CNratio, data = master.MSM)
+model20 = lm(nitrification ~ Moisture + TOC, data = master.MSM)
+model21 = lm(nitrification ~ Moisture + CNratio, data = master.MSM)
+model22 = lm(nitrification ~ TOC, data = master.MSM)
+model23 = lm(nitrification ~ pH, data = master.MSM)
+model24 = lm(nitrification ~ Moisture, data = master.MSM)
+model25 = lm(nitrification ~ ugNH4.gDM, data = master.MSM)
+model26 = lm(nitrification ~ CNratio, data = master.MSM)
 
-results = lm(nitrification ~ Site + Date, data = master)
-summary(results)
+#summary(model_)
 
+#Model comparison
+Cand.models.nitrif.MSM <- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.nitrif.MSM, modnames = Modnames, second.ord = TRUE), digits = 4)
 
-results = lm(nitrification ~ Site + Hydrology, data = master)
-summary(results)
+#Ag
+model1 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model2 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model3 = lm(nitrification ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model4 = lm(nitrification ~ pH + Moisture + ugNH4.gDM, data = master.Ag)
+model5 = lm(nitrification ~ pH + Moisture, data = master.Ag)
+model6 = lm(nitrification ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model7 = lm(nitrification ~ Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model8 = lm(nitrification ~ Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model9 = lm(nitrification ~ Moisture + ugNH4.gDM, data = master.Ag)
+model10 = lm(nitrification ~ pH + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model11 = lm(nitrification ~ pH + ugNH4.gDM + TOC, data = master.Ag)
+model12 = lm(nitrification ~ pH + ugNH4.gDM + CNratio, data = master.Ag)
+model13 = lm(nitrification ~ pH + ugNH4.gDM, data = master.Ag)
+model14 = lm(nitrification ~ pH + TOC + CNratio, data = master.Ag)
+model15 = lm(nitrification ~ pH + TOC, data = master.Ag)
+model16 = lm(nitrification ~ pH + CNratio, data = master.Ag)
+model17 = lm(nitrification ~ ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model18 = lm(nitrification ~ ugNH4.gDM + TOC, data = master.Ag)
+model19 = lm(nitrification ~ Moisture + TOC + CNratio, data = master.Ag)
+model20 = lm(nitrification ~ Moisture + TOC, data = master.Ag)
+model21 = lm(nitrification ~ Moisture + CNratio, data = master.Ag)
+model22 = lm(nitrification ~ TOC, data = master.Ag)
+model23 = lm(nitrification ~ pH, data = master.Ag)
+model24 = lm(nitrification ~ Moisture, data = master.Ag)
+model25 = lm(nitrification ~ ugNH4.gDM, data = master.Ag)
+model26 = lm(nitrification ~ CNratio, data = master.Ag)
 
-#NITRIFICATION INTERACTIONS
-
-results = lm(nitrification ~ Site * Moisture, data = master)
-summary(results)
-
-
-results = lm(nitrification ~ Site * ugNH4.gDM, data = master)
-summary(results)
-
-results = lm(nitrification ~ Site * Date, data = master)
-summary(results)
-
-results = lm(nitrification ~ Site * Hydrology, data = master)
-summary(results)
-
-#NITRIFICATION Multiple TERMS MODEL
-
-results = lm(nitrification ~ Site + Date + Moisture + ugNH4.gDM , data = master)
-summary(results)
-
-#NITRIFICATION Multiple TERMS MODEL WITH INTERACTIONS
-
-
-results = lm(nitrification ~ Site * Date  + ugNH4.gDM, data = master)
-summary(results)
-
-results = lm(nitrification ~ Site * Moisture + Date + ugNH4.gDM, data = master)
-summary(results)
-
-results = lm(nitrification ~ Site * ugNH4.gDM + Moisture + Date , data = master)
-summary(results)
+#Model comparison
+Cand.models.nitrif.Ag <- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.nitrif.Ag, modnames = Modnames, second.ord = TRUE), digits = 4)
 ```
-
-#graph nitrification
-```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
-p1=p+geom_smooth(method="lm")
-p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=18), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y = (expression(paste("Nitrification Potential (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
-
-ggsave("../figures/nitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/nitrification.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-p <- ggplot(master, aes(x=pH, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=4) + scale_x_continuous(limits=c(4,6.5))
-p1=p+geom_smooth(method="lm")
-p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=18), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Soil pH", y = (expression(paste("Nitrification Potential (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
-
-ggsave("../figures/nitrification_pH.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/nitrification_pH.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-```
-
-
-# denitrification
+# denitrification - multiple linear regression - AIC model comparisons
 ```{r echo=TRUE}
 #DENITRIFICATION
+model1 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model2 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model3 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model4 = lm(denitrification ~ pH + Moisture + ugNH4.gDM, data = master.MSM)
+model5 = lm(denitrification ~ pH + Moisture, data = master.MSM)
+model6 = lm(denitrification ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model7 = lm(denitrification ~ Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model8 = lm(denitrification ~ Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model9 = lm(denitrification ~ Moisture + ugNH4.gDM, data = master.MSM)
+model10 = lm(denitrification ~ pH + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model11 = lm(denitrification ~ pH + ugNH4.gDM + TOC, data = master.MSM)
+model12 = lm(denitrification ~ pH + ugNH4.gDM + CNratio, data = master.MSM)
+model13 = lm(denitrification ~ pH + ugNH4.gDM, data = master.MSM)
+model14 = lm(denitrification ~ pH + TOC + CNratio, data = master.MSM)
+model15 = lm(denitrification ~ pH + TOC, data = master.MSM)
+model16 = lm(denitrification ~ pH + CNratio, data = master.MSM)
+model17 = lm(denitrification ~ ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model18 = lm(denitrification ~ ugNH4.gDM + TOC, data = master.MSM)
+model19 = lm(denitrification ~ Moisture + TOC + CNratio, data = master.MSM)
+model20 = lm(denitrification ~ Moisture + TOC, data = master.MSM)
+model21 = lm(denitrification ~ Moisture + CNratio, data = master.MSM)
+model22 = lm(denitrification ~ TOC, data = master.MSM)
+model23 = lm(denitrification ~ pH, data = master.MSM)
+model24 = lm(denitrification ~ Moisture, data = master.MSM)
+model25 = lm(denitrification ~ ugNH4.gDM, data = master.MSM)
+model26 = lm(denitrification ~ CNratio, data = master.MSM)
 
+#Model comparison
+Cand.models.denitrif.MSM <- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.denitrif.MSM, modnames = Modnames, second.ord = TRUE), digits = 4)
 
-results = lm(denitrification ~ Site + Moisture , data = master)
-summary(results)
+#Ag
+model1 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model2 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model3 = lm(denitrification ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model4 = lm(denitrification ~ pH + Moisture + ugNH4.gDM, data = master.Ag)
+model5 = lm(denitrification ~ pH + Moisture, data = master.Ag)
+model6 = lm(denitrification ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model7 = lm(denitrification ~ Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model8 = lm(denitrification ~ Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model9 = lm(denitrification ~ Moisture + ugNH4.gDM, data = master.Ag)
+model10 = lm(denitrification ~ pH + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model11 = lm(denitrification ~ pH + ugNH4.gDM + TOC, data = master.Ag)
+model12 = lm(denitrification ~ pH + ugNH4.gDM + CNratio, data = master.Ag)
+model13 = lm(denitrification ~ pH + ugNH4.gDM, data = master.Ag)
+model14 = lm(denitrification ~ pH + TOC + CNratio, data = master.Ag)
+model15 = lm(denitrification ~ pH + TOC, data = master.Ag)
+model16 = lm(denitrification ~ pH + CNratio, data = master.Ag)
+model17 = lm(denitrification ~ ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model18 = lm(denitrification ~ ugNH4.gDM + TOC, data = master.Ag)
+model19 = lm(denitrification ~ Moisture + TOC + CNratio, data = master.Ag)
+model20 = lm(denitrification ~ Moisture + TOC, data = master.Ag)
+model21 = lm(denitrification ~ Moisture + CNratio, data = master.Ag)
+model22 = lm(denitrification ~ TOC, data = master.Ag)
+model23 = lm(denitrification ~ pH, data = master.Ag)
+model24 = lm(denitrification ~ Moisture, data = master.Ag)
+model25 = lm(denitrification ~ ugNH4.gDM, data = master.Ag)
+model26 = lm(denitrification ~ CNratio, data = master.Ag)
 
-results = lm(denitrification ~ Site  + ugNO3.gDM, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site + Date, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site + Hydrology, data = master)
-summary(results)
-
-
-#DENITRIFICATION INTERACTIONS
-
-results = lm(denitrification ~ Site * Moisture , data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * ugNO3.gDM, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * Date, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * Hydrology, data = master)
-summary(results)
-
-#DENITRIFICATION Multiple TERMS MODEL
-
-results = lm(denitrification ~ Site + Date  + Moisture , data = master)
-summary(results)
-
-#DENITRIFICATION Multiple TERMS MODEL WITH INTERACTIONS
-
-results = lm(denitrification ~ Site * Date + Moisture + ugNO3.gDM, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * Moisture + Date + ugNO3.gDM, data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * ugNO3.gDM + Moisture + Date , data = master)
-summary(results)
-
-results = lm(denitrification ~ Site * ugNO3.gDM + Moisture , data = master)
-summary(results)
-
-
+#Model comparison
+Cand.models.denitrif.Ag<- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.denitrif.Ag, modnames = Modnames, second.ord = TRUE), digits = 4)
 ```
-#graph denitrification
-```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=denitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
-p1=p+geom_smooth(method="lm")
-p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=18), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y = (expression(paste("Denitrification Potential (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
-
-ggsave("../figures/denitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-ggsave("../figures/denitrification.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-```
-
+# N Mineralization - multiple linear regression - AIC model comparisons
 ```{r echo=TRUE}
-#NMineralization
+#N_MINERALIZATION
+model1 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model2 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model3 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model4 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM, data = master.MSM)
+model5 = lm(Nmineralization_ng ~ pH + Moisture, data = master.MSM)
+model6 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model7 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + TOC, data = master.MSM)
+model8 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + CNratio, data = master.MSM)
+model9 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM, data = master.MSM)
+model10 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model11 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + TOC, data = master.MSM)
+model12 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + CNratio, data = master.MSM)
+model13 = lm(Nmineralization_ng ~ pH + ugNH4.gDM, data = master.MSM)
+model14 = lm(Nmineralization_ng ~ pH + TOC + CNratio, data = master.MSM)
+model15 = lm(Nmineralization_ng ~ pH + TOC, data = master.MSM)
+model16 = lm(Nmineralization_ng ~ pH + CNratio, data = master.MSM)
+model17 = lm(Nmineralization_ng ~ ugNH4.gDM + TOC + CNratio, data = master.MSM)
+model18 = lm(Nmineralization_ng ~ ugNH4.gDM + TOC, data = master.MSM)
+model19 = lm(Nmineralization_ng ~ Moisture + TOC + CNratio, data = master.MSM)
+model20 = lm(Nmineralization_ng ~ Moisture + TOC, data = master.MSM)
+model21 = lm(Nmineralization_ng ~ Moisture + CNratio, data = master.MSM)
+model22 = lm(Nmineralization_ng ~ TOC, data = master.MSM)
+model23 = lm(Nmineralization_ng ~ pH, data = master.MSM)
+model24 = lm(Nmineralization_ng ~ Moisture, data = master.MSM)
+model25 = lm(Nmineralization_ng ~ ugNH4.gDM, data = master.MSM)
+model26 = lm(Nmineralization_ng ~ CNratio, data = master.MSM)
 
-results = lm(Nmineralization ~ Site + Moisture, data = master)
-summary(results)
+#Model comparison
+Cand.models.Nmin.MSM <- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.Nmin.MSM, modnames = Modnames, second.ord = TRUE), digits = 4)
 
-results = lm(Nmineralization ~ Site + ugNO3.gDM , data = master)
-summary(results)
+#Ag
+model1 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model2 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model3 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model4 = lm(Nmineralization_ng ~ pH + Moisture + ugNH4.gDM, data = master.Ag)
+model5 = lm(Nmineralization_ng ~ pH + Moisture, data = master.Ag)
+model6 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model7 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + TOC, data = master.Ag)
+model8 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM + CNratio, data = master.Ag)
+model9 = lm(Nmineralization_ng ~ Moisture + ugNH4.gDM, data = master.Ag)
+model10 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model11 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + TOC, data = master.Ag)
+model12 = lm(Nmineralization_ng ~ pH + ugNH4.gDM + CNratio, data = master.Ag)
+model13 = lm(Nmineralization_ng ~ pH + ugNH4.gDM, data = master.Ag)
+model14 = lm(Nmineralization_ng ~ pH + TOC + CNratio, data = master.Ag)
+model15 = lm(Nmineralization_ng ~ pH + TOC, data = master.Ag)
+model16 = lm(Nmineralization_ng ~ pH + CNratio, data = master.Ag)
+model17 = lm(Nmineralization_ng ~ ugNH4.gDM + TOC + CNratio, data = master.Ag)
+model18 = lm(Nmineralization_ng ~ ugNH4.gDM + TOC, data = master.Ag)
+model19 = lm(Nmineralization_ng ~ Moisture + TOC + CNratio, data = master.Ag)
+model20 = lm(Nmineralization_ng ~ Moisture + TOC, data = master.Ag)
+model21 = lm(Nmineralization_ng ~ Moisture + CNratio, data = master.Ag)
+model22 = lm(Nmineralization_ng ~ TOC, data = master.Ag)
+model23 = lm(Nmineralization_ng ~ pH, data = master.Ag)
+model24 = lm(Nmineralization_ng ~ Moisture, data = master.Ag)
+model25 = lm(Nmineralization_ng ~ ugNH4.gDM, data = master.Ag)
+model26 = lm(Nmineralization_ng ~ CNratio, data = master.Ag)
 
-results = lm(Nmineralization ~ Site + Date, data = master)
-summary(results)
-
-results = lm(Nmineralization ~ Site + Hydrology, data = master)
-summary(results)
-
-#NMineralization INTERACTIONS
-
-results = lm(Nmineralization ~ Site * Moisture, data = master)
-summary(results)
-
-results = lm(Nmineralization ~ Site * ugNH4.gDM, data = master)
-summary(results)
-
-results = lm(Nmineralization ~ Site * Date, data = master)
-summary(results)
-
-results = lm(Nmineralization ~ Site * Hydrology, data = master)
-summary(results)
-
-#NMINERALIZATION Multiple TERMS MODEL
-
-results = lm(Nmineralization ~ Site + Date  + Moisture + ugNH4.gDM, data = master)
-summary(results)
-
-#NMINERALIZATION Multiple TERMS MODEL WITH INTERACTIONS
-
-
-#N-min
-results = lm(Nmineralization ~ Site * Date + ugNH4.gDM + Moisture, data = master)
-summary(results)
-
-
-#N-min
-results = lm(Nmineralization ~ Site * Moisture + Date + ugNH4.gDM, data = master)
-summary(results)
-
-results = lm(Nmineralization ~ Site * ugNH4.gDM + Moisture + Date , data = master)
-summary(results)
-
+#Model comparison
+Cand.models.Nmin.Ag<- list(model1, model2, model3, model4, model5, model6, model7, model8, model9, model10, model11, model12, model13, model14, model15, model16, model17, model18, model19, model20, model21, model22, model23, model24, model25, model26)
+Modnames <- c("model1","model2", "model3", "model4", "model5", "model6", "model7", "model8", "model9", "model10", "model11", "model12", "model13", "model14", "model15", "model16", "model17", "model18", "model19", "model20", "model21", "model22", "model23", "model24", "model25", "model26")
+##compute table
+print(aictab(cand.set = Cand.models.Nmin.Ag, modnames = Modnames, second.ord = TRUE), digits = 4)
 ```
+### Graph Figures 2 and 3 and supplemental
+#Rain Clouds Graphs
+```{r rain clouds, include=FALSE}
+#Rainclouds for repeated measures
+source("../bin/R_rainclouds.R")
+source("../bin/summarySE.R")
+source("../bin/simulateData.R")
+group <- as.factor(master$Site)
+#sum_master <- summarySE(master, measurevar = "denitrification", groupvars=c("group", "time"))
+#head(sum_master)
 
-#graph N mineralization
+#Rainclouds for repeated measures - denitrification
+p1 <- ggplot(master, aes(x = as.factor(time), y = denitrification, fill = group)) +
+  geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
+  geom_point(aes(x = as.numeric(time)-.15, y = denitrification, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
+  geom_boxplot(aes(x = as.factor(time), y = denitrification, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
+  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
+  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "", y = (expression(paste("Denitrification (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) 
+p1
+
+#Rainclouds for repeated measures - nitrification
+p2 <- ggplot(master, aes(x = as.factor(time), y = nitrification, fill = group)) +
+  geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
+  geom_point(aes(x = as.numeric(time)-.15, y = nitrification, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
+  geom_boxplot(aes(x = as.factor(time), y = nitrification, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
+  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
+  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "", y = (expression(paste("Nitrification (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")"))))
+p2
+
+#Rainclouds for repeated measures - Nmin_ng
+p3 <- ggplot(master, aes(x = as.factor(time), y = Nmineralization_ng, fill = group)) +
+  geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
+  geom_point(aes(x = as.numeric(time)-.15, y = Nmineralization_ng, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
+  geom_boxplot(aes(x = as.factor(time), y = Nmineralization_ng, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
+  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
+  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "time point", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1}))) + scale_x_discrete(labels=c("1" = "July", "2" = "September", "3" = "December"))
+p3
+
+library("cowplot") #combining rain cloud plots
+
+# remove legends and axes
+p1a <-p1 + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")
+p2a <- p2 + theme(legend.position="none")+ rremove("x.text")
+p3a <- p3 + theme(legend.position="none")
+
+#legend <- get_legend(p1)
+
+# align all plots vertically
+plots <- align_plots(p1a, p2a, p3a, align = 'v', axis = 'l')
+
+# put together bottom row and then everything
+p4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], labels = c("A","B","C"), ncol=1, align='v')
+p4        
+
+ggsave("../figures/Figure1_rainclouds.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=7, height=12, dpi=300, limitsize=TRUE)
+```
+#graph nitrification x moisture and pH
 ```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=Nmineralization, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Agriculture", "Impoundment")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
+p <- ggplot(master, aes(x=Moisture, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))+scale_y_continuous(
+  labels = scales::number_format(accuracy = 1))
 p1=p+geom_smooth(method="lm")
-p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=18), axis.text=element_text(size=18), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=18), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y=expression(paste("Nitrogen Mineralization (", mu,'g ',NH[4]^{'+'},'-N ',g^{-1},' soil)'))) + theme(strip.text.x = element_text(size=18, face="bold"), strip.text.y = element_text(size=18, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+nitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = (expression(paste("Nitrification (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
 
-ggsave("../figures/Nmineralization.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+#ggsave("../figures/nitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
 
-ggsave("../figures/Nmineralization.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+#ggsave("../figures/nitrification.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+
+p <- ggplot(master, aes(x=pH, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=2) + scale_x_continuous(limits=c(4,6.5))+scale_y_continuous(labels = scales::number_format(accuracy = 0.1))
+#p1=p+geom_smooth(method="lm")
+nitrif_pH <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + labs(x = "Soil pH", y = "") + theme(axis.title=element_text(vjust=1,size=12), axis.text=element_text(size=12), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=12), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm"))  
+nitrif_pH
+
+#ggsave("../figures/nitrification_pH.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+
+#ggsave("../figures/nitrification_pH.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
 ```
+#graph denitrification x moisture
+```{r Loading Files, include=FALSE}
+p <- ggplot(master, aes(x=Moisture, y=denitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
+p1=p+geom_smooth(method="lm")
+denitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = (expression(paste("Denitrification (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
 
-### Mike McCoy - look here!
+#ggsave("../figures/denitrification.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+
+#ggsave("../figures/denitrification.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+```
+#graph N mineralization x moisture
+```{r Loading Files, include=FALSE}
+p <- ggplot(master, aes(x=Moisture, y=Nmineralization_ng, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
+p1=p+geom_smooth(method="lm")
+Nmin <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1}))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+
+#ggsave("../figures/Nmineralization.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+
+#ggsave("../figures/Nmineralization.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
+```
+#combine graphs N process rates x moisture
+```{r Loading Files, include=FALSE}
+library("cowplot") #combining plots
+
+# remove legends and axes
+n1 <-denitrif + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")
+n2 <- nitrif + theme(legend.position="none")+ rremove("x.text")
+n3 <- Nmin + theme(legend.position="none")
+
+# align all plots vertically
+plots <- align_plots(n1,n2,n3, align = 'v', axis = 'l')
+
+# combine moisture N process graphs
+n4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], labels = c("A","B","C"), label_size = 16, ncol=1, align='v')
+n4        
+
+# inset nitrification x pH
+n5 <- 
+library(viridis)
+ggdraw() +
+  draw_plot(n4 + theme(), 0, 0, 1, 1) +
+  draw_plot(nitrif_pH + theme(legend.position = "none"), 0.635, 0.46, 0.35, 0.2)
+
+ggsave("../figures/Figure2_Nrates_Moisture.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=8, height=15, dpi=300, limitsize=TRUE)
+
+```
 ### Mattamuskeet MESOCOSM Experiment - 2017-2018 - Brian Hinckley thesis
 #Loading data file
 ```{r Loading Files, include=FALSE}
 # load data file 
-library(lme4)
+library(lmerTest)
 meso <- read.csv("../data/2017_Matt_Mesocosm_Nitrogen.csv")
 dim(meso)
 
 #mesocosm cores (called Plots here) were sampled monthly for six months. Are we on the correct track for dealing with variability of sampling the same core (i.e., Plot) each month? Soils represent Ag or MSM site. Treatment is the addition of nitrogen (or not for the control). Retention Time is holding water for 24h or 72 hr
+nitrif.lm <- lmer(nitrification ~ Site + (1|Month), data = master)
+plot(nitrif.lm)
+nitrif.lm
+anova(nitrif.lm)
+summary(nitrif.lm)
+confint(nitrif.lm)
 
-TKN.m <- lmer(TKN ~ Site*Ret_Time*Sample.Date + (1+Sample.Date | Plot), data=meso)
-summary(TKN.m)
+TKN.lm <- lmer(TKN ~ Site*Ret_Time*Treatment + (1|Sample.Date), data=meso)
+summary(TKN.lm)
+confint(TKN.lm)
 
-NH3N.m <- lmer(NH3N ~ Site*Ret_Time*Sample.Date + (1+Sample.Date | Plot), data=meso)
-summary(NH3N.m)
+NH3N.lm <- lmer(NH3N ~ Site*Ret_Time*Treatment + (1|Sample.Date), data=meso)
+summary(NH3N.lm)
+confint(NH3N.lm)
 
-NO3N.m <- lmer(NO3N ~ Site*Ret_Time*Sample.Date + (1+Sample.Date | Plot), data=meso)
-summary(NO3N.m)
+NO3N.lm <- lmer(NO3N ~ Site*Ret_Time*Treatment + (1|Sample.Date), data=meso)
+summary(NO3N.lm)
+confint(NO3N.lm)
+
+ON.lm <- lmer(ON ~ Site*Ret_Time*Treatment + (1|Sample.Date), data=meso)
+summary(ON.lm)
+confint(ON.lm)
 ```
 
 ```{r Loading Files, include=FALSE}
-source("../bin/multiplot.R")
+p <- ggplot(meso, aes(x=Sample.Date, y=ON, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black"), labels=c("control","N addition")) + scale_shape_manual(name="Retention Time", values=c(15,17))+ stat_summary(fun.data=mean_cl_boot,size=1,position=position_dodge(width=0.5)) +facet_wrap(~Site)
+ON <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=14), axis.text.x = element_text(hjust=0.8, angle=45, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = "Organic N") + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+ON
+#ggsave("../figures/meso_ON.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 
-p <- ggplot(meso, aes(x=Sample.Date, y=TKN, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black")) + scale_shape_manual(name="Retention Time", values=c(15,17)) + stat_summary(fun.data=mean_cl_boot,size=1.25,position=position_dodge(width=0.5)) +facet_wrap(~Site)
-TKN <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=14), axis.text.x = element_text(hjust=0.8, angle=45, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = "Organic N") + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
-
-ggsave("../figures/meso_ON.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-p <- ggplot(meso, aes(x=Sample.Date, y=NH3N, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black")) + scale_shape_manual(name="Retention Time", values=c(15,17)) + stat_summary(fun.data=mean_cl_boot,size=1.25,position=position_dodge(width=0.5)) +facet_wrap(~Site)
+p <- ggplot(meso, aes(x=Sample.Date, y=NH3N, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black"), labels=c("control","N addition")) + scale_shape_manual(name="Retention Time", values=c(15,17)) + stat_summary(fun.data=mean_cl_boot,size=1.25,position=position_dodge(width=0.75)) +facet_wrap(~Site)
 ammonium <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=14), axis.text.x = element_text(hjust=0.8, angle=45, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = "Ammonium-N") + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+ammonium
+#ggsave("../figures/meso_ammonium.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 
-ggsave("../figures/meso_ammonium.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
-
-p <- ggplot(meso, aes(x=Sample.Date, y=NO3N, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black")) + scale_shape_manual(name="Retention Time", values=c(15,17)) + stat_summary(fun.data=mean_cl_boot,size=1.25,position=position_dodge(width=0.5)) +facet_wrap(~Site)
+p <- ggplot(meso, aes(x=Sample.Date, y=NO3N, color=as.factor(Treatment), shape=as.factor(Ret_Time)))+ scale_color_manual(name="Treatment", values=c("lightgray","black"), labels=c("control","N addition")) + scale_shape_manual(name="Retention Time", values=c(15,17)) + stat_summary(fun.data=mean_cl_boot,size=1.25,position=position_dodge(width=0.5)) +facet_wrap(~Site)
 nitrate <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16,face="bold"), axis.text=element_text(size=14), axis.text.x = element_text(hjust=0.8, angle=45, size=14), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Month", y = "Nitrate-N") + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+nitrate
+#ggsave("../figures/meso_nitrate.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
 
-ggsave("../figures/meso_nitrate.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=NA, height=NA, dpi=300, limitsize=TRUE)
+library("cowplot") #combining rain cloud plots
 
-png("../figures/mesocosmN.png", width = 480 * 1.25, height = 480 * 2.25)
-multiplot(TKN, ammonium, nitrate, cols=1)
-dev.off()
+# remove legends and axes
+ON.a <-ON + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")
+ammonium.a <- ammonium + theme(legend.position="none")+ rremove("x.text")
+nitrate.a <- nitrate + theme(legend.position="none")
+
+# align all plots vertically
+plots <- align_plots(ON.a, ammonium.a, nitrate.a, align = 'v', axis = 'l')
+
+# put together bottom row and then everything
+p4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], rel_heights = c(1.1,1,1.3), labels = c("A","B","C"), ncol=1, align='v')
+p4        
+
+ggsave("../figures/FigS1_mesoN.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=9, height=12, dpi=300, limitsize=TRUE)
 
 ```
 
 ```{r data manipulation, include=FALSE}
 # load data file 
 library(dplyr)
-library(tidyr)
 meso.new <- meso %>% group_by(Sample.Date,Ret_Time) %>% 
   summarise(avgTKN = mean(TKN, na.rm=TRUE),
             avgNH3N = mean(NH3N, na.rm=TRUE),
