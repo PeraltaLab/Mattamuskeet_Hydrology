@@ -1,5 +1,5 @@
 ---
-title: "Hydrologic management influences nitrogen cycling at the terrestrial-aquatic interface"
+title: "Wetland Conditions Differentially Influence Nitrogen Processing Within Waterfowl Impoundments"
 author: "Brian Hinckley, Randall Etheridge, Ariane Peralta"
 date: "Last updated on `r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -34,8 +34,11 @@ require("knitr")
 library("AICcmodavg")
 library("scales")
 library("tidyr")
-library(ggpubr)
-# set std err
+library("ggpubr")
+install.packages("cowplot")
+devtools::install_github("wilkelab/cowplot")
+library("cowplot")
+#set std err
 se <- function(x, ...) {
 sd(x, na.rm = TRUE)/sqrt(length(na.omit(x)))
 }
@@ -476,40 +479,57 @@ source("../bin/R_rainclouds.R")
 source("../bin/summarySE.R")
 source("../bin/simulateData.R")
 group <- as.factor(master$Site)
+
 #sum_master <- summarySE(master, measurevar = "denitrification", groupvars=c("group", "time"))
 #head(sum_master)
 
 #Rainclouds for repeated measures - denitrification
-p1 <- ggplot(master, aes(x = as.factor(time), y = denitrification, fill = group)) +
+p1a <- ggplot(master, aes(x = as.factor(time), y = denitrification, fill = group)) +
   geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
   geom_point(aes(x = as.numeric(time)-.15, y = denitrification, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
   geom_boxplot(aes(x = as.factor(time), y = denitrification, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
-  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
-  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "", y = (expression(paste("Denitrification (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) 
+  scale_colour_manual(name="Site", values=c("gold3","deepskyblue3"))+
+  scale_fill_manual(name="Site", values=c("gold3","deepskyblue3"))+ labs(x = "", y = (expression(paste("Denitrification (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) 
+p1<- p1a + theme(panel.grid.major = element_blank(), 
+               panel.grid.minor = element_blank(), 
+               axis.line = element_line(colour = "black")) + 
+              theme(panel.background = element_blank())+
+theme(axis.title = element_text(size=14), axis.text = element_text(size=14),
+      axis.text.x = element_text(size=14)) 
 p1
 
 #Rainclouds for repeated measures - nitrification
-p2 <- ggplot(master, aes(x = as.factor(time), y = nitrification, fill = group)) +
+p2a <- ggplot(master, aes(x = as.factor(time), y = nitrification, fill = group)) +
   geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
   geom_point(aes(x = as.numeric(time)-.15, y = nitrification, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
   geom_boxplot(aes(x = as.factor(time), y = nitrification, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
-  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
-  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "", y = (expression(paste("Nitrification (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")"))))
+  scale_colour_manual(name="Site", values=c("gold3","deepskyblue3"))+
+  scale_fill_manual(name="Site", values=c("gold3","deepskyblue3"))+ labs(x = "", y = (expression(paste("Nitrification (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")"))))
+p2<- p2a + theme(panel.grid.major = element_blank(), 
+               panel.grid.minor = element_blank(), 
+               axis.line = element_line(colour = "black")) + 
+              theme(panel.background = element_blank())+
+theme(axis.title = element_text(size=14), axis.text = element_text(size=14),
+      axis.text.x = element_text(size=14)) 
 p2
 
 #Rainclouds for repeated measures - Nmin_ng
-p3 <- ggplot(master, aes(x = as.factor(time), y = Nmineralization_ng, fill = group)) +
+p3a <- ggplot(master, aes(x = as.factor(time), y = Nmineralization_ng, fill = group)) +
   geom_flat_violin(aes(fill = group),position = position_nudge(x = .1, y = 0), adjust = 1.5, trim = FALSE, alpha = .5, colour = NA)+
   geom_point(aes(x = as.numeric(time)-.15, y = Nmineralization_ng, colour = group),position = position_jitter(width = .05), size = 1.5, shape = 20)+
   geom_boxplot(aes(x = as.factor(time), y = Nmineralization_ng, fill = group),outlier.shape = NA, alpha = .5, width = .1, colour = "black")+
-  scale_colour_manual(name="Site", values=c("darkgreen","cyan"))+
-  scale_fill_manual(name="Site", values=c("darkgreen","cyan"))+ labs(x = "time point", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1}))) + scale_x_discrete(labels=c("1" = "July", "2" = "September", "3" = "December"))
+  scale_colour_manual(name="Site", values=c("gold3","deepskyblue3"))+
+  scale_fill_manual(name="Site", values=c("gold3","deepskyblue3"))+ labs(x = "Time Point", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1},")"))) + scale_x_discrete(labels=c("1" = "July", "2" = "September", "3" = "December"))
+p3<- p3a + theme(panel.grid.major = element_blank(), 
+               panel.grid.minor = element_blank(), 
+               axis.line = element_line(colour = "black")) + 
+              theme(panel.background = element_blank())+
+theme(axis.title = element_text(size=14), axis.text = element_text(size=14),
+      axis.text.x = element_text(size=14)) 
 p3
 
-library("cowplot") #combining rain cloud plots
-
 # remove legends and axes
-p1a <-p1 + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")
+p1a <-p1 + theme(legend.position="top", legend.box = "horizontal")+   theme(legend.text=element_text(size=14),legend.title=element_text(size=14)) + rremove("x.text")
 p2a <- p2 + theme(legend.position="none")+ rremove("x.text")
 p3a <- p3 + theme(legend.position="none")
 
@@ -522,11 +542,11 @@ plots <- align_plots(p1a, p2a, p3a, align = 'v', axis = 'l')
 p4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], labels = c("A","B","C"), ncol=1, align='v')
 p4        
 
-ggsave("../figures/Figure1_rainclouds.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=7, height=12, dpi=300, limitsize=TRUE)
+ggsave("../figures/Figure2_rainclouds.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=7, height=12, dpi=300, limitsize=TRUE)
 ```
 #graph nitrification x moisture and pH
 ```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))+scale_y_continuous(
+p <- ggplot(master, aes(x=Moisture, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("gold3","deepskyblue3"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))+scale_y_continuous(
   labels = scales::number_format(accuracy = 1))
 p1=p+geom_smooth(method="lm")
 nitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = (expression(paste("Nitrification (ng NO"[2]," (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
@@ -535,7 +555,7 @@ nitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid
 
 #ggsave("../figures/nitrification.png", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
 
-p <- ggplot(master, aes(x=pH, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=2) + scale_x_continuous(limits=c(4,6.5))+scale_y_continuous(labels = scales::number_format(accuracy = 0.1))
+p <- ggplot(master, aes(x=pH, y=nitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("gold3","deepskyblue3"), labels = c("Ag", "MSM")) +  geom_point(size=2) + scale_x_continuous(limits=c(4,6.5))+scale_y_continuous(labels = scales::number_format(accuracy = 0.1))
 #p1=p+geom_smooth(method="lm")
 nitrif_pH <- p + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + labs(x = "Soil pH", y = "") + theme(axis.title=element_text(vjust=1,size=12), axis.text=element_text(size=12), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=12), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm"))  
 nitrif_pH
@@ -546,7 +566,7 @@ nitrif_pH
 ```
 #graph denitrification x moisture
 ```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=denitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
+p <- ggplot(master, aes(x=Moisture, y=denitrification, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("gold3","deepskyblue3"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
 p1=p+geom_smooth(method="lm")
 denitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "", y = (expression(paste("Denitrification (ng N"[2],"O (g DM)"^-{1}," hr"^-{1},")")))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
 
@@ -556,9 +576,9 @@ denitrif <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.gr
 ```
 #graph N mineralization x moisture
 ```{r Loading Files, include=FALSE}
-p <- ggplot(master, aes(x=Moisture, y=Nmineralization_ng, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("darkgreen","cyan"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
+p <- ggplot(master, aes(x=Moisture, y=Nmineralization_ng, shape=as.factor(Month), color=as.factor(Site)))+scale_shape_manual(name="Month", values=c(15,16,17), labels=c("July","September","December"))+scale_color_manual(name="Site", values=c("gold3","deepskyblue3"), labels = c("Ag", "MSM")) +  geom_point(size=4) + scale_x_continuous(limits=c(0,60))
 p1=p+geom_smooth(method="lm")
-Nmin <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1}))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
+Nmin <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +theme(axis.title=element_text(vjust=1,size=16), axis.text=element_text(size=16), axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), panel.border = element_rect(colour = "black",size=1)) + theme(axis.ticks.length=unit(0.3,"cm")) + labs(x = "Percent Moisture", y=expression(paste("N Mineralization (ng ",NH[4]^{'+'},"-N (g DM)"^-{1}," d"^-{1},")"))) + theme(strip.text.x = element_text(size=16, face="bold"), strip.text.y = element_text(size=16, face="bold"), strip.background = element_rect(colour="black", fill="white", size=1))
 
 #ggsave("../figures/Nmineralization.pdf", plot=last_plot(), device=NULL, path=NULL, scale=1, width=6.26, height=4.43, dpi=300, limitsize=TRUE)
 
@@ -569,7 +589,7 @@ Nmin <- p1 + theme_bw() + theme(panel.grid.major = element_blank(), panel.grid.m
 library("cowplot") #combining plots
 
 # remove legends and axes
-n1 <-denitrif + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")
+n1 <-denitrif + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")+   theme(legend.text=element_text(size=14),legend.title=element_text(size=14))
 n2 <- nitrif + theme(legend.position="none")+ rremove("x.text")
 n3 <- Nmin + theme(legend.position="none")
 
@@ -581,14 +601,65 @@ n4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], labels = c("A","B","C"), label
 n4        
 
 # inset nitrification x pH
-n5 <- 
 library(viridis)
-ggdraw() +
+n5 <- ggdraw() +
   draw_plot(n4 + theme(), 0, 0, 1, 1) +
   draw_plot(nitrif_pH + theme(legend.position = "none"), 0.635, 0.46, 0.35, 0.2)
 
-ggsave("../figures/Figure2_Nrates_Moisture.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=8, height=15, dpi=300, limitsize=TRUE)
+ggsave("../figures/Figure3_Nrates_Moisture.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=8, height=15, dpi=300, limitsize=TRUE)
 
+```
+# Discussion - additional stats
+```{r Loading Files, include=FALSE}
+#pH for MSM (and incorporating wet vs. dry)
+pH.MSM.lm <- lm(pH ~ Hydrology*Month, data = master.MSM)
+summary(pH.MSM.lm, ddf="Kenward-Roger")
+
+#graph
+p1 <-ggplot(master.MSM, aes(x = factor(Month), y = pH, fill=Hydrology)) +
+      theme_bw() + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =    
+            element_line(colour = "black")) 
+p1.pH <- p1 + geom_boxplot(alpha = 0.90) + scale_fill_manual(values=c("white", "skyblue3")) +
+      geom_point(aes(fill = factor(Hydrology)), size=2, shape=21, position = position_jitterdodge()) +
+      labs(x="Time Point", y="Soil pH") + scale_x_discrete("", labels = c("1.July" = "July","2.September" = 
+      "September", "3.December" = "December")) + 
+  theme(axis.title=element_text(vjust=1,size=16), 
+        axis.text=element_text(size=16), 
+        axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), 
+            panel.border = element_rect(colour = "black",size=1)) + 
+  theme(axis.ticks.length=unit(0.3,"cm"))
+p1.pH
+
+#graph
+p2 <-ggplot(master.Ag, aes(x = factor(Month), y = pH, fill=Hydrology)) +
+      theme_bw() + 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line =    
+            element_line(colour = "black")) 
+p2.pH <- p2 + geom_boxplot(alpha = 0.90) + scale_fill_manual(values=c("white", "skyblue3")) +
+      geom_point(aes(fill = factor(Hydrology)), size=2, shape=21, position = position_jitterdodge()) +
+      labs(x="Month", y="Soil pH") + 
+  scale_x_discrete("Time Point", labels = c("1.July" = "July","2.September" = 
+      "September", "3.December" = "December")) + 
+  theme(axis.title=element_text(vjust=1,size=16), 
+        axis.text=element_text(size=16), 
+        axis.text.x = element_text(vjust=0.65, hjust=0.5, size=16), 
+            panel.border = element_rect(colour = "black",size=1)) + 
+  theme(axis.ticks.length=unit(0.3,"cm"))
+p2.pH
+
+# remove legends and axes
+n1 <-p1.pH + theme(legend.position="top", legend.box = "horizontal")+ rremove("x.text")+ theme(legend.text=element_text(size=14))
+n2 <- p2.pH + theme(legend.position="none")
+
+# align all plots vertically
+plots <- align_plots(n1,n2, align = 'v', axis = 'l')
+
+# combine moisture N process graphs
+n3 <- plot_grid(plots[[1]],plots[[2]], labels = c("A","B"), label_size = 16, ncol=1, align='v')
+n3   
+
+ggsave("../figures/FigureS1_hydrology.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=6, height=8, dpi=300, limitsize=TRUE)
 ```
 ### Mattamuskeet MESOCOSM Experiment - 2017-2018 - Brian Hinckley thesis
 #Loading data file
@@ -653,7 +724,7 @@ plots <- align_plots(ON.a, ammonium.a, nitrate.a, align = 'v', axis = 'l')
 p4 <- plot_grid(plots[[1]],plots[[2]],plots[[3]], rel_heights = c(1.1,1,1.3), labels = c("A","B","C"), ncol=1, align='v')
 p4        
 
-ggsave("../figures/FigS1_mesoN.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=9, height=12, dpi=300, limitsize=TRUE)
+ggsave("../figures/FigS2_mesoN.png", plot=last_plot(), device=NULL, path=NULL, scale=1,  width=9, height=12, dpi=300, limitsize=TRUE)
 
 ```
 
