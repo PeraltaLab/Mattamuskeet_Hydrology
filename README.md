@@ -1,5 +1,5 @@
 # Mattamuskeet_Hydrology
-"Wetland conditions differentially influence nitrogen processing within waterfowl impoundments" (manuscription in revision)
+"Wetland conditions differentially influence nitrogen processing within waterfowl impoundments" (manuscript in revision)
 
 This study was conducted at the long-term fertilization and mowing experiment at West Research Campus, East Carolina University.
 
