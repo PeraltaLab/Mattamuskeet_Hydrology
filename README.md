@@ -5,11 +5,17 @@ This study was conducted at the long-term fertilization and mowing experiment at
 
 This repository contains open-source code, data, & text files.
 
-For information regarding the project, please visit: [update with publication information]
+For information regarding the project, please see the following publications: 
+
+Hinckley, B.R.§, J.R. Etheridge, and A.L. Peralta (2019) Wetland conditions differentially influence nitrogen processing within waterfowl impoundments. Wetlands. https://doi.org/10.1007/s13157-019-01246-8 
+
+Hinckley, B.R.§, J.R. Etheridge, and A.L. Peralta (2019) Storm event nitrogen dynamics in waterfowl impoundments. Water, Air, and Soil Pollution. 230:294. https://doi.org/10.1007/s11270-019-4332-5
 
 ## We address the following questions
 
-* **Aim)**: How do waterfowl impoundment-specific characteristics influence N cycling transformations? 
+* **Aim 1)**: How do waterfowl impoundment-specific characteristics influence nitrogen cycling transformations? 
+
+* **Aim 2)**: How do storm events influence nitrogen dynamics in waterfowl impoundments? 
 
 ### Repo Contents
 
